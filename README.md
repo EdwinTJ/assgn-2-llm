@@ -4,6 +4,8 @@
 
 I need to create for the client 
 - Need dockerfile
+- Better UI
+- Option in table file to anonymize from there
 
 ## Server 
 
