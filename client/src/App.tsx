@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import FileUpload from "./components/FileUpload";
 import FileList from "./components/FileList";
+import FileDetail from "./components/FileDetail";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   return (
@@ -23,7 +26,18 @@ function App() {
         <Routes>
           <Route path="/" element={<FileUpload />} />
           <Route path="/files" element={<FileList />} />
+          <Route path="/files/:id" element={<FileDetail />} />
         </Routes>
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={true}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          draggable
+          aria-label="Toast notifications"
+        />
       </div>
     </Router>
   );

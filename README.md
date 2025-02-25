@@ -34,4 +34,20 @@ docker-compose exec server npm run prisma-migrate
 # Run this after making changes
 docker-compose down
 docker-compose up
+
+
+
+#Probelm with database
+docker-compose down
+docker-compose run --rm server sh -c "cd /app && npx prisma generate"
+docker-compose run --rm server sh -c "cd /app && npx prisma db push"
+docker-compose up
+
+
+docker builder prune
+
+docker-compose down -v  # This removes volumes too, for a clean start
+
+docker-compose up --build
+
 ```

@@ -1,11 +1,11 @@
+#Client Dockerfile
 FROM node:22.13.1-alpine
-WORKDIR /app
-COPY ./package.json .
-COPY pnpm-lock.yaml ./
+
+# Install pnpm
 RUN npm install -g pnpm
-COPY . .
+
+WORKDIR /app
 
 EXPOSE 5173
 
-# the program we want to run!
-CMD ["pnpm", "run", "dev"]
+CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0"]

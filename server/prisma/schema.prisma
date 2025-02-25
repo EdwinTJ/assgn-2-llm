@@ -17,4 +17,6 @@ model File {
   mimeType       String
   uploaded       DateTime @default(now())
   anonymized     Boolean  @default(false)
+  extractedText  String?  @db.Text
+  textExtracted  Boolean  @default(false)
 }

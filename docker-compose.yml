@@ -7,14 +7,28 @@ services:
       - "5173:5173"
     volumes:
       - ./client:/app
-      - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:3000
-    command: sh -c "pnpm run dev -- --host 0.0.0.0"
+    command: sh -c "rm -rf node_modules && pnpm install && pnpm install react-toastify && pnpm run dev -- --host 0.0.0.0"
     depends_on:
       - server
     networks:
       - app-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: assgn2_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   server:
     build:
@@ -24,14 +38,44 @@ services:
       - "3000:3000"
     volumes:
       - ./server:/app
+      - /app/node_modules/.pnpm
       - /app/node_modules
     environment:
       - NODE_ENV=development
       - PORT=3000
       - ASSET_URL=http://localhost:5173
       - DATABASE_URL=postgresql://admin1:admin123@postgres:5432/file_anonymizer?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OLLAMA_URL=http://ollama:11434
     depends_on:
       - postgres
+      - redis
+      - ollama
+    command: sh -c "pnpm add ollama && pnpm run dev"
+    networks:
+      - app-network
+
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    volumes:
+      - ./server:/app
+      - /app/node_modules/.pnpm
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://admin1:admin123@postgres:5432/file_anonymizer?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OLLAMA_URL=http://ollama:11434
+    command: sh -c "pnpm add ollama@^0.4.9 && npx ts-node src/workers/startWorker.ts"
+    depends_on:
+      - postgres
+      - redis
+      - server
+      - ollama
     networks:
       - app-network
 
@@ -48,8 +92,19 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
 volumes:
   postgres-data:
+  redis-data:
+  ollama:
 
 networks:
   app-network:
