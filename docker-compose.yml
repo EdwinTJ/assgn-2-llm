@@ -7,9 +7,15 @@ services:
       - "5173:5173"
     volumes:
       - ./client:/app
+      - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:3000
-    command: sh -c "rm -rf node_modules && pnpm install && pnpm install react-toastify && pnpm run dev -- --host 0.0.0.0"
+      - PNPM_HOME=/app/.pnpm-store
+    command: >
+      sh -c "
+        pnpm install && 
+        pnpm run dev -- --host 0.0.0.0
+      "
     depends_on:
       - server
     networks:
@@ -38,7 +44,6 @@ services:
       - "3000:3000"
     volumes:
       - ./server:/app
-      - /app/node_modules/.pnpm
       - /app/node_modules
     environment:
       - NODE_ENV=development
@@ -48,11 +53,17 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - OLLAMA_URL=http://ollama:11434
+      - PNPM_HOME=/app/.pnpm-store
+    command: >
+      sh -c "
+        pnpm install &&
+        pnpm prisma generate &&
+        pnpm run dev
+      "
     depends_on:
       - postgres
       - redis
       - ollama
-    command: sh -c "pnpm add ollama && pnpm run dev"
     networks:
       - app-network
 
@@ -62,7 +73,6 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./server:/app
-      - /app/node_modules/.pnpm
       - /app/node_modules
     environment:
       - NODE_ENV=development
@@ -70,7 +80,13 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - OLLAMA_URL=http://ollama:11434
-    command: sh -c "pnpm add ollama@^0.4.9 && npx ts-node src/workers/startWorker.ts"
+      - PNPM_HOME=/app/.pnpm-store
+    command: >
+      sh -c "
+        pnpm install &&
+        pnpm prisma generate &&
+        npx ts-node src/workers/startWorker.ts
+      "
     depends_on:
       - postgres
       - redis

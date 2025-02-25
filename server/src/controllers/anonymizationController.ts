@@ -1,6 +1,6 @@
 import { Ollama } from "ollama";
 import { PrismaClient } from "@prisma/client";
-import { Request, Response } from "express";
+import { Request, Response, RequestHandler } from "express";
 
 const prisma = new PrismaClient();
 
@@ -89,4 +89,39 @@ export const getAnonymized = async (
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }
+};
+
+// Get the anonymized content of a file
+export const getAnonymizedContent: RequestHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+
+  const file = await prisma.file.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      originalName: true,
+      anonymizedName: true,
+      textExtracted: true,
+      extractedText: true,
+    },
+  });
+
+  if (!file) {
+    res.status(404).json({ error: "File not found" });
+    return;
+  }
+
+  if (!file.textExtracted || !file.extractedText) {
+    res.status(400).json({
+      error: "Text extraction is required before anonymization",
+      message: "Please extract text from this file first",
+    });
+    return;
+  }
+
+  // send file to user
+  res.status(200).json({ content: file.extractedText });
 };

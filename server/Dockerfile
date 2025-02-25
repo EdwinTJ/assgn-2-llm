@@ -1,21 +1,15 @@
-# Server Dockerfile
 FROM node:22.13.1-alpine
 
 # Install pnpm
 RUN npm install -g pnpm
 
+# Set pnpm store directory
+ENV PNPM_HOME=/app/.pnpm-store
+
 WORKDIR /app
 
-COPY package.json ./
-COPY prisma ./prisma/
-
-
-RUN pnpm install
-
-RUN pnpm prisma generate
-
-COPY . .
+# We're not copying or installing anything in the Dockerfile
+# Everything will be done at runtime via the command in docker-compose.yml
 
 EXPOSE 3000
 
-CMD ["pnpm", "run", "dev"]

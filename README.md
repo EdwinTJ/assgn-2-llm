@@ -40,7 +40,7 @@ docker-compose up
 #Probelm with database
 docker-compose down
 docker-compose run --rm server sh -c "cd /app && npx prisma generate"
-docker-compose run --rm server sh -c "cd /app && npx prisma db push"
+docker-compose run --rm server sh -c "cd /app && npx prisma db push && pnpm install"
 docker-compose up
 
 
@@ -50,4 +50,9 @@ docker-compose down -v  # This removes volumes too, for a clean start
 
 docker-compose up --build
 
+
+# Run to rebuild the images with the new configurations
+docker-compose build --no-cache
+
+sudo rm -rf server/node_modules client/node_modules
 ```

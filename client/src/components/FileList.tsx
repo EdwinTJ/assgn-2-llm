@@ -314,6 +314,10 @@ const FileList = () => {
     navigate(`/files/${fileId}`);
   };
 
+  const viewAnonymizedFile = (fileId: string) => {
+    navigate(`/files/${fileId}/anonymized`);
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
@@ -487,6 +491,7 @@ const FileList = () => {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex">
+                  {/* AI Anonymize button - only visible if text is extracted */}
                   {file.textExtracted && !file.anonymizedName && (
                     <button
                       onClick={() => setSelectedFileId(file.id)}
@@ -497,7 +502,8 @@ const FileList = () => {
                     </button>
                   )}
 
-                  {!file.anonymizedName && (
+                  {/* Standard Anonymize button - only visible if text is extracted */}
+                  {file.textExtracted && !file.anonymizedName && (
                     <button
                       onClick={() => handleAnonymize(file.id)}
                       disabled={
@@ -537,6 +543,7 @@ const FileList = () => {
                     </button>
                   )}
 
+                  {/* Text Extraction button or View Text button */}
                   {file.textExtracted ? (
                     <button
                       onClick={() => viewExtractedText(file.id)}
@@ -581,6 +588,16 @@ const FileList = () => {
                       ) : (
                         "Extract Text"
                       )}
+                    </button>
+                  )}
+
+                  {/* View Anonymized File button */}
+                  {file.anonymizedName && (
+                    <button
+                      onClick={() => viewAnonymizedFile(file.id)}
+                      className="text-white bg-teal-500 px-2 py-1 rounded text-xs hover:bg-teal-600"
+                    >
+                      View Anonymized
                     </button>
                   )}
                 </td>
