@@ -7,6 +7,7 @@ interface FileRecord {
   originalName: string;
   anonymizedName: string | null;
   textExtracted: boolean;
+  hasSummary?: boolean;
 }
 
 const FileList = () => {
@@ -82,6 +83,21 @@ const FileList = () => {
                 });
               }
             }
+
+            // Check for completed summaries
+            if (oldFile && !oldFile.hasSummary && newFile.hasSummary) {
+              toast.success(`Summary generated for ${newFile.originalName}`, {
+                toastId: `summary-${newFile.id}`,
+              });
+              // Remove from tracking
+              if (backgroundJobs.has(`summary-${newFile.id}`)) {
+                setBackgroundJobs((prev) => {
+                  const updated = new Map(prev);
+                  updated.delete(`summary-${newFile.id}`);
+                  return updated;
+                });
+              }
+            }
           }
         }
 
@@ -105,65 +121,6 @@ const FileList = () => {
 
     return () => clearInterval(interval);
   }, [backgroundJobs]);
-
-  const handleAIAnonymize = async (fileId: string) => {
-    if (!wordToAnonymize.trim()) {
-      toast.error("Please enter a word to anonymize");
-      wordInputRef.current?.focus();
-      return;
-    }
-
-    try {
-      // Add file to processing state
-      setProcessingFiles((prev) => new Set(prev).add(fileId));
-      setSelectedFileId(null);
-
-      toast.info(`Starting AI anonymization of word "${wordToAnonymize}"...`, {
-        autoClose: 2000,
-      });
-
-      const response = await fetch(
-        `http://localhost:3000/api/anonymized/${fileId}?word=${encodeURIComponent(
-          wordToAnonymize
-        )}`,
-        {
-          method: "GET",
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to process anonymization");
-      }
-
-      const data = await response.json();
-
-      console.log("data: ", data);
-      toast.success(
-        `AI anonymization completed: "${wordToAnonymize}" redacted`
-      );
-
-      // Clear the word input
-      setWordToAnonymize("");
-
-      // Refresh file list to show the updated anonymization status
-      refreshFileList();
-    } catch (error) {
-      console.error("AI Anonymization error:", error);
-      toast.error(
-        `Anonymization failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    } finally {
-      // Remove file from processing state
-      setProcessingFiles((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(fileId);
-        return newSet;
-      });
-    }
-  };
 
   const handleExtractText = async (fileId: string) => {
     try {
@@ -232,61 +189,133 @@ const FileList = () => {
     }
   };
 
-  const handleAnonymize = async (fileId: string) => {
+  const handleAIAnonymize = async (fileId: string) => {
+    // Validate word input
+    if (!wordToAnonymize || !wordToAnonymize.trim()) {
+      toast.error("Please enter a word to anonymize");
+      wordInputRef.current?.focus();
+      return;
+    }
+
+    const trimmedWord = wordToAnonymize.trim();
+    console.log("Anonymizing word:", trimmedWord);
+
+    try {
+      // Add file to processing state
+      setProcessingFiles((prev) => new Set(prev).add(fileId));
+      setSelectedFileId(null);
+
+      toast.info(`Starting AI anonymization of word "${trimmedWord}"...`, {
+        autoClose: 2000,
+      });
+
+      // Construct the URL with the word as a query parameter
+      const url = `http://localhost:3000/api/anonymized/${fileId}?word=${encodeURIComponent(
+        trimmedWord
+      )}`;
+      console.log("Request URL:", url);
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      // Log the HTTP status of the response
+      console.log("Response status:", response.status);
+
+      // Handle non-OK responses
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.message || "Failed to process anonymization");
+      }
+
+      const data = await response.json();
+      console.log("Anonymization response data:", data);
+
+      toast.success(`AI anonymization completed: "${trimmedWord}" redacted`);
+
+      // Clear the word input
+      setWordToAnonymize("");
+
+      // Refresh file list to show the updated anonymization status
+      refreshFileList();
+    } catch (error) {
+      console.error("AI Anonymization error:", error);
+      toast.error(
+        `Anonymization failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    } finally {
+      // Remove file from processing state
+      setProcessingFiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(fileId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleGenerateSummary = async (fileId: string) => {
     try {
       // Add file to processing state
       setProcessingFiles((prev) => new Set(prev).add(fileId));
 
+      toast.info("Generating summary...", {
+        autoClose: 2000,
+      });
+
       const response = await fetch(
-        `http://localhost:3000/api/anonymize/${fileId}`,
+        `http://localhost:3000/api/summary/${fileId}`,
         {
           method: "POST",
         }
       );
 
+      // Log the HTTP status of the response
+      console.log("Summary generation response status:", response.status);
+
+      // Handle non-OK responses
       if (!response.ok) {
-        throw new Error("Failed to anonymize file");
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.message || "Failed to generate summary");
       }
 
       const data = await response.json();
+      console.log("Summary response data:", data);
 
-      console.log("Anonymization started:", data);
-      // Create a toast for starting the process
-      toast.info(
-        `Anonymization started for file ${
-          files.find((f) => f.id === fileId)?.originalName
-        }`,
-        {
-          autoClose: 2000,
-        }
-      );
+      toast.success("Summary generated successfully!");
 
       // Add to background jobs tracking
       setBackgroundJobs((prev) => {
         const updated = new Map(prev);
-        updated.set(`anon-${fileId}`, "processing");
+        updated.set(`summary-${fileId}`, "processing");
         return updated;
       });
 
-      // Update file in list
+      // Update file in list with processing status
       setActionStatus({
         id: fileId,
-        message: "File anonymization started",
+        message: "Summary generation completed",
         type: "success",
       });
 
-      // Refresh file list after a short delay
-      setTimeout(() => {
-        refreshFileList();
-        // Clear status message after a few seconds
-        setTimeout(() => setActionStatus(null), 3000);
-      }, 1000);
+      // Refresh file list to show the updated summary status
+      refreshFileList();
     } catch (error) {
-      console.error("Anonymization error:", error);
-      toast.error(`Failed to anonymize file: ${error}`);
+      console.error("Summary generation error:", error);
+      toast.error(
+        `Failed to generate summary: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
       setActionStatus({
         id: fileId,
-        message: "Failed to anonymize file",
+        message: "Failed to generate summary",
         type: "error",
       });
     } finally {
@@ -316,6 +345,10 @@ const FileList = () => {
 
   const viewAnonymizedFile = (fileId: string) => {
     navigate(`/files/${fileId}/anonymized`);
+  };
+
+  const viewFileSummary = (fileId: string) => {
+    navigate(`/files/${fileId}/summary`);
   };
 
   if (loading) {
@@ -366,10 +399,10 @@ const FileList = () => {
         </button>
       </div>
 
-      {/* AI Anonymization input field */}
+      {/* Anonymization input field */}
       {selectedFileId && (
         <div className="mb-6 p-4 border border-blue-200 rounded-lg bg-blue-50">
-          <h3 className="font-medium mb-2">AI Anonymization</h3>
+          <h3 className="font-medium mb-2">Anonymization</h3>
           <div className="flex items-center space-x-2">
             <input
               type="text"
@@ -439,6 +472,9 @@ const FileList = () => {
                 Text Extracted
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Summary
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -490,56 +526,30 @@ const FileList = () => {
                     </span>
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {file.hasSummary ? (
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                      Yes
+                    </span>
+                  ) : backgroundJobs.has(`summary-${file.id}`) ? (
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                      Processing
+                    </span>
+                  ) : (
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                      No
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex flex-wrap">
                   {/* AI Anonymize button - only visible if text is extracted */}
                   {file.textExtracted && !file.anonymizedName && (
                     <button
                       onClick={() => setSelectedFileId(file.id)}
                       disabled={processingFiles.has(file.id)}
-                      className="text-white bg-indigo-500 px-2 py-1 rounded text-xs hover:bg-indigo-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      className="text-white bg-indigo-500 px-2 py-1 rounded text-xs hover:bg-indigo-600 disabled:bg-gray-300 disabled:cursor-not-allowed mr-2 mb-1"
                     >
-                      AI Anonymize
-                    </button>
-                  )}
-
-                  {/* Standard Anonymize button - only visible if text is extracted */}
-                  {file.textExtracted && !file.anonymizedName && (
-                    <button
-                      onClick={() => handleAnonymize(file.id)}
-                      disabled={
-                        processingFiles.has(file.id) ||
-                        backgroundJobs.has(`anon-${file.id}`)
-                      }
-                      className="text-white bg-green-500 px-2 py-1 rounded text-xs hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                    >
-                      {processingFiles.has(file.id) ||
-                      backgroundJobs.has(`anon-${file.id}`) ? (
-                        <span className="flex items-center">
-                          <svg
-                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Processing...
-                        </span>
-                      ) : (
-                        "Anonymize"
-                      )}
+                      Anonymize
                     </button>
                   )}
 
@@ -547,7 +557,7 @@ const FileList = () => {
                   {file.textExtracted ? (
                     <button
                       onClick={() => viewExtractedText(file.id)}
-                      className="text-white bg-blue-500 px-2 py-1 rounded text-xs hover:bg-blue-600"
+                      className="text-white bg-blue-500 px-2 py-1 rounded text-xs hover:bg-blue-600 mr-2 mb-1"
                     >
                       View Text
                     </button>
@@ -558,7 +568,7 @@ const FileList = () => {
                         processingFiles.has(file.id) ||
                         backgroundJobs.has(`extract-${file.id}`)
                       }
-                      className="text-white bg-purple-500 px-2 py-1 rounded text-xs hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      className="text-white bg-purple-500 px-2 py-1 rounded text-xs hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed mr-2 mb-1"
                     >
                       {processingFiles.has(file.id) ||
                       backgroundJobs.has(`extract-${file.id}`) ? (
@@ -595,9 +605,60 @@ const FileList = () => {
                   {file.anonymizedName && (
                     <button
                       onClick={() => viewAnonymizedFile(file.id)}
-                      className="text-white bg-teal-500 px-2 py-1 rounded text-xs hover:bg-teal-600"
+                      className="text-white bg-teal-500 px-2 py-1 rounded text-xs hover:bg-teal-600 mr-2 mb-1"
                     >
                       View Anonymized
+                    </button>
+                  )}
+
+                  {/* Generate Summary button */}
+                  {file.textExtracted && !file.hasSummary && (
+                    <button
+                      onClick={() => handleGenerateSummary(file.id)}
+                      disabled={
+                        processingFiles.has(file.id) ||
+                        backgroundJobs.has(`summary-${file.id}`)
+                      }
+                      className="text-white bg-amber-500 px-2 py-1 rounded text-xs hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed mr-2 mb-1"
+                    >
+                      {processingFiles.has(file.id) ||
+                      backgroundJobs.has(`summary-${file.id}`) ? (
+                        <span className="flex items-center">
+                          <svg
+                            className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Processing...
+                        </span>
+                      ) : (
+                        "Generate Summary"
+                      )}
+                    </button>
+                  )}
+
+                  {/* View Summary button */}
+                  {file.hasSummary && (
+                    <button
+                      onClick={() => viewFileSummary(file.id)}
+                      className="text-white bg-amber-600 px-2 py-1 rounded text-xs hover:bg-amber-700 mr-2 mb-1"
+                    >
+                      View Summary
                     </button>
                   )}
                 </td>

@@ -55,4 +55,7 @@ docker-compose up --build
 docker-compose build --no-cache
 
 sudo rm -rf server/node_modules client/node_modules
+
+#While Docker is running run this command to pull tinyllama
+docker-compose exec ollama ollama pull tinyllama
 ```

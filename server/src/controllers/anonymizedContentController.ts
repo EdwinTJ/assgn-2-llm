@@ -21,6 +21,7 @@ export const getAnonymizedContent: RequestHandler = async (
         anonymizedName: true,
         anonymized: true,
         extractedText: true,
+        anonymizedText: true,
         path: true,
       },
     });
@@ -38,22 +39,16 @@ export const getAnonymizedContent: RequestHandler = async (
       return;
     }
 
-    // For AI anonymization, we can return the stored text that was anonymized
-    // via the Ollama API
-    if (file.extractedText) {
-      // For now, we'll return the extracted text as a placeholder
-      // In a real app, we'd want to store the anonymized text separately
+    if (file.anonymizedText) {
       res.json({
         id: file.id,
         originalName: file.originalName,
         anonymizedName: file.anonymizedName,
-        content: `${file.extractedText}\n\n[This content has been anonymized]`,
+        content: file.anonymizedText,
       });
       return;
     }
 
-    // For standard anonymization (non-AI), we would typically read the file from disk
-    // Here we're returning a placeholder message
     res.json({
       id: file.id,
       originalName: file.originalName,

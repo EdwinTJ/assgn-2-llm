@@ -3,6 +3,7 @@ import FileUpload from "./components/FileUpload";
 import FileList from "./components/FileList";
 import FileDetail from "./components/FileDetail";
 import AnonymizedFileView from "./components/AnonymizedFileView";
+import FileSummary from "./components/FileSummary";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -32,6 +33,7 @@ function App() {
             path="/files/:id/anonymized"
             element={<AnonymizedFileView />}
           />
+          <Route path="/files/:id/summary" element={<FileSummary />} />
         </Routes>
         <ToastContainer
           position="top-right"

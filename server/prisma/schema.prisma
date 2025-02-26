@@ -20,4 +20,6 @@ model File {
   extractedText  String?  @db.Text
   textExtracted  Boolean  @default(false)
   anonymizedText String?  @db.Text
+  summary        String?  @db.Text
+  hasSummary     Boolean  @default(false)
 }
